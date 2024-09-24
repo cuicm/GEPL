@@ -1,6 +1,7 @@
 # “Pre-train, prompt" Framework to Boost Graph Neural Networks Performance in EEG Analysis
 
-![p1](https://github.com/user-attachments/assets/31019951-eedb-4e54-922f-b812eed8ec06)
+![image](https://github.com/user-attachments/assets/464f92d7-7e0c-49b7-931c-cd05a344c4f3)
+
 
 Overview of workflow and GEPL. (a) EEG signals are resampled, cropped with a fixed window, and transformed using the Fourier transform to construct a graph structure with electrodes as nodes and correlation coefficients as the adjacency matrix. 
 (b) In the pre-training phase, contrastive learning generates graph augmentations, and contrastive loss optimizes the model's generalization to EEG data. 
