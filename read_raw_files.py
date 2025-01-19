@@ -10,7 +10,7 @@ def read_raw_tinnus(filepath):
     for file in file_list:
         if '.set' not in file:
             continue
-        file_path=f"{filepath}\{file}"
+        file_path=f"{filepath}/{file}"
 
         raws = mne.io.read_epochs_eeglab(file_path,uint16_codec='ascii')
         data = raws.get_data().astype(np.float32)
@@ -19,7 +19,7 @@ def read_raw_tinnus(filepath):
         eeg_data.append(data)
     return eeg_data
 
-def read_raw_deap(filepath='RAW\DEAP Dataset'):
+def read_raw_deap(filepath='RAW/DEAP Dataset'):
 
     def read_eeg_signal_from_file(filename):
         x = pickle._Unpickler(open(filename, 'rb'))
@@ -27,9 +27,9 @@ def read_raw_deap(filepath='RAW\DEAP Dataset'):
         p = x.load()
         return p
 
-    # Load only 22/32 participants with frontal videos recorded
+    # Load all participants with frontal videos recorded
     files = []
-    for n in range(1, 23): 
+    for n in range(1, 33): 
         s = ''
         if n < 10:
             s += '0'
@@ -37,25 +37,23 @@ def read_raw_deap(filepath='RAW\DEAP Dataset'):
         files.append(s)
     print(files)
 
-    # 22x40 = 880 trials for 22 participants
+    # 32x40 = 1280 trials for 32 participants
     labels = []
     data = []
 
     for i in files: 
-        filename = f"{filepath}\data_preprocessed_python\s" + i + ".dat"
+        filename = f"{filepath}/data_preprocessed_python/s" + i + ".dat"
         trial = read_eeg_signal_from_file(filename)
         labels.append(trial['labels'])
         data.append(trial['data'])
-
+        
     labels = np.array(labels)
     labels = labels.flatten()
-    labels = labels.reshape(880, 4)
+    labels = labels.reshape(32*40, 4)
 
     data = np.array(data)
     data = data.flatten()
-    data = data.reshape(880, 40, 8064)
-
-    print(labels)
+    data = data.reshape(32*40, 40, 8064)
 
     eeg_channels = np.array(["Fp1", "AF3", "F3", "F7", "FC5", "FC1", "C3", "T7", "CP5", "CP1", "P3", "P7", "PO3", "O1", "Oz", "Pz", "Fp2", "AF4", "Fz", "F4", "F8", "FC6", "FC2", "Cz", "C4", "T8", "CP6", "CP2", "P4", "P8", "PO4", "O2"])
     peripheral_channels = np.array(["hEOG", "vEOG", "zEMG", "tEMG", "GSR", "Respiration belt", "Plethysmograph", "Temperature"])
@@ -74,7 +72,7 @@ def read_raw_shl(filepath):
         for file in file_list:
             if '.set' not in file:
                 continue
-            file_path=f"{filepath}\{file}"
+            file_path=f"{filepath}/{file}"
 
             if 'CN' in file_path:
                 raws = mne.io.read_raw_eeglab(file_path,uint16_codec='latin1')
@@ -91,19 +89,20 @@ def read_raw_shl(filepath):
             eeg_data.append(data)
     eeg_data = []
     labels = []
-    read_raw_files(f'{filepath}\CN',eeg_data,labels,0)
-    read_raw_files(f'{filepath}\SHL',eeg_data,labels,1)
+    read_raw_files(f'{filepath}/CN',eeg_data,labels,0)
+    read_raw_files(f'{filepath}/SHL',eeg_data,labels,1)
     return eeg_data,labels
 
 def read_raw_alzh(filepath):
-
     file_list = os.listdir(filepath)
     eeg_data = []
-    labels = [1]*36 + [0]*29 + [2]*23
+    labels = [1]*36 + [0]*29
     for file in file_list:
+        if len(eeg_data)==len(labels):
+            break
         if 'sub-' not in file:
             continue
-        file_path = f'{filepath}\{file}\eeg\{file}_task-eyesclosed_eeg.set'
+        file_path = f'{filepath}/{file}/eeg/{file}_task-eyesclosed_eeg.set'
         print(file_path)
         raw = mne.io.read_raw_eeglab(file_path,preload=False)
         data,times=raw[:]
@@ -111,14 +110,13 @@ def read_raw_alzh(filepath):
         eeg_data.append(data)
     return eeg_data,labels
 
-
 def read_raw_TE(filepath):
 
     def read_raw_files(filepath,eeg_data,labels,label):
         sample_length = 500 * 50 # sample rate * second
         file_list = os.listdir(filepath)
         for file in file_list:
-            mat_file_path = f'{filepath}\{file}'
+            mat_file_path = f'{filepath}/{file}'
             print(mat_file_path)
             mat_contents = scipy.io.loadmat(mat_file_path)
 
@@ -142,8 +140,8 @@ def read_raw_TE(filepath):
 
     eeg_data = []
     labels = []
-    read_raw_files(f'{filepath}\epilepsy',eeg_data,labels,0)
-    read_raw_files(f'{filepath}\\normal',eeg_data,labels,1)
+    read_raw_files(f'{filepath}/epilepsy',eeg_data,labels,0)
+    read_raw_files(f'{filepath}/normal',eeg_data,labels,1)
     
     return eeg_data,labels
 

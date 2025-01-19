@@ -3,15 +3,20 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.optim import Adam
 import argparse
-from datasets import Pretrain_Dataset, collate_fn
+from datasets import Pretrain_Dataset,Deap_Dataset,Tinnitus_Dataset, collate_fn
 from models import Brain_GCN, Encoder, Projection
 from utils import set_seed, ChannelDropout, ConnectionDropout, FeatureMask
+import os
 
-def train_model(augmentor, data_path, save_path, lr=0.0001, batch_size=32, num_epochs=100, seed=42):
+
+def train_model(augmentor, data_path, save_path, lr=0.0001, batch_size=32, num_epochs=100, seed=42, number=0, layer=5, ro='mean', gtype='gcn',gpu=0):
     set_seed(seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else "cpu")
 
-    dataset = torch.load(data_path)
+    if os.path.exists(data_path):
+        dataset = torch.load(data_path)
+    else:
+        Pretrain_Dataset('RAW\Tinnitus Dataset','RAW\DEAP Dataset',sample_rate=200,window_length=10000)
     print(f"Dataset size: {len(dataset)}")
 
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
@@ -19,14 +24,14 @@ def train_model(augmentor, data_path, save_path, lr=0.0001, batch_size=32, num_e
     input_dim = 5000  
     hidden_dim = 1024
     output_dim = 1024
-    num_layers = 5
-    drop_ratio = 0
+    num_layers = layer
+    drop_ratio = 0.5
 
     encoder_model = Brain_GCN(input_dim=input_dim,
                               hidden_dim=hidden_dim,
                               num_layers=num_layers,
                               drop_ratio=drop_ratio,
-                              graph_pooling="add").to(device)
+                              graph_pooling=ro,gtype=gtype).to(device)
 
     encoder = Encoder(encoder_model, augmentor).to(device)
     projection = Projection(hidden_dim, output_dim).to(device)
@@ -81,7 +86,7 @@ def train_model(augmentor, data_path, save_path, lr=0.0001, batch_size=32, num_e
 
         if average_loss < best_loss:
             best_loss = average_loss
-            torch.save(encoder.encoder.state_dict(), f'{save_path}/encoder.pth')
+            torch.save(encoder.encoder.state_dict(), f'{save_path}/encoder{number}.pth')
             print(f"New best model saved with loss {best_loss}")
 
     print("Pre-training completed.")
@@ -95,9 +100,14 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
     parser.add_argument("--num_epochs", type=int, default=100, help="Number of epochs")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--number", type=int, default=0)
+    parser.add_argument("--layer", type=int, default=5)
+    parser.add_argument("--ro", type=str, default='mean')
+    parser.add_argument("--gtype", type=str, default='gcn')
+    parser.add_argument("--gpu", type=int, default=0)
 
     args = parser.parse_args()
-
+    print(args)
     augmentor_mapping = {
         "ConnectionDropout": (ConnectionDropout(0.3), ConnectionDropout(0.3)),
         "ChannelDropout": (ChannelDropout(0.3), ChannelDropout(0.3)),
@@ -106,4 +116,4 @@ if __name__ == "__main__":
 
     augmentor = augmentor_mapping[args.augmentor]
 
-    train_model(augmentor, args.data_path, args.save_path, args.lr, args.batch_size, args.num_epochs, args.seed)
+    train_model(augmentor, args.data_path, args.save_path, args.lr, args.batch_size, args.num_epochs, args.seed, args.number, args.layer, args.ro, args.gtype, args.gpu)

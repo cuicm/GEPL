@@ -1,7 +1,7 @@
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from read_raw_files import read_raw_tinnus,read_raw_deap,read_raw_shl,read_raw_alzh,read_raw_TE
-from preprocess import preprocess_eeg
+from preprocess import preprocess_eeg,preprocess_eeg_segments
 from utils import caculate_adj_matrix
 
 def trans_adj(adj_matrix, k):
@@ -26,22 +26,24 @@ class Pretrain_Dataset(Dataset):
         self.sample_rate = sample_rate
         self.window_length = window_length
         self.data=[]
-
+        
         signals = read_raw_tinnus(t_dir)
         for i in range(len(signals)):
-            signals[i] = preprocess_eeg(signals[i],128,sample_rate,window_length)
-            node_features = torch.tensor(signals[i])
-            adj_matrix = torch.tensor(caculate_adj_matrix(signals[i]))
-            adj_matrix = trans_adj(adj_matrix, 2)
-            self.data.append((node_features, adj_matrix))
+            signals_list = preprocess_eeg_segments(signals[i],128,sample_rate,window_length)
+            for j in range(len(signals_list)):
+                node_features = torch.tensor(signals_list[j]).to(torch.float32)
+                adj_matrix = torch.tensor(caculate_adj_matrix(signals_list[j]))
+                adj_matrix = trans_adj(adj_matrix, 2).to(torch.float32)
+                self.data.append((node_features, adj_matrix))
         
         signals = read_raw_deap(d_dir)
         for i in range(len(signals)):
             signals[i] = preprocess_eeg(signals[i],128,sample_rate,window_length)
-            node_features = torch.tensor(signals[i])
+            node_features = torch.tensor(signals[i]).to(torch.float32)
             adj_matrix = torch.tensor(caculate_adj_matrix(signals[i]))
-            adj_matrix = trans_adj(adj_matrix, 1)
+            adj_matrix = trans_adj(adj_matrix, 1).to(torch.float32)
             self.data.append((node_features, adj_matrix))
+    
         self.length = len(self.data)
 
     def __len__(self):
@@ -50,7 +52,7 @@ class Pretrain_Dataset(Dataset):
     def __getitem__(self, idx):
         return self.data[idx]
 
-class Tinnus_Dataset(Dataset):
+class Tinnitus_Dataset(Dataset):
     def __init__(self,raw_dir,sample_rate,window_length):
         self.sample_rate = sample_rate
         self.window_length = window_length
@@ -58,11 +60,12 @@ class Tinnus_Dataset(Dataset):
 
         signals = read_raw_tinnus(raw_dir)
         for i in range(len(signals)):
-            signals[i] = preprocess_eeg(signals[i],128,sample_rate,window_length)
-            node_features = torch.tensor(signals[i])
-            adj_matrix = torch.tensor(caculate_adj_matrix(signals[i]))
-            adj_matrix = trans_adj(adj_matrix, 2)
-            self.data.append((node_features, adj_matrix))
+            signals_list = preprocess_eeg_segments(signals[i],128,sample_rate,window_length)
+            for j in range(len(signals_list)):
+                node_features = torch.tensor(signals_list[j]).to(torch.float32)
+                adj_matrix = torch.tensor(caculate_adj_matrix(signals_list[j]))
+                adj_matrix = trans_adj(adj_matrix, 2).to(torch.float32)
+                self.data.append((node_features, adj_matrix))
         self.length = len(self.data)
 
     def __len__(self):
@@ -80,9 +83,9 @@ class Deap_Dataset(Dataset):
         signals = read_raw_deap(raw_dir)
         for i in range(len(signals)):
             signals[i] = preprocess_eeg(signals[i],128,sample_rate,window_length)
-            node_features = torch.tensor(signals[i])
+            node_features = torch.tensor(signals[i]).to(torch.float32)
             adj_matrix = torch.tensor(caculate_adj_matrix(signals[i]))
-            adj_matrix = trans_adj(adj_matrix, 1)
+            adj_matrix = trans_adj(adj_matrix, 1).to(torch.float32)
             self.data.append((node_features, adj_matrix))
         self.length = len(self.data)
 
@@ -92,21 +95,28 @@ class Deap_Dataset(Dataset):
     def __getitem__(self, idx):
         return self.data[idx]
         
-
 class SHL_Dataset(Dataset):
-    def __init__(self,raw_dir,sample_rate,window_length):
+    def __init__(self,raw_dir,sample_rate,window_length,ids=None):
         self.sample_rate = sample_rate
         self.window_length = window_length
         self.data = []
         self.labels = []
 
         signals,labels = read_raw_shl(raw_dir)
-        self.labels = [torch.tensor(label) for label in labels]
+
+        labels = [torch.tensor(label) for label in labels]
+        
+        print(ids)
         for i in range(len(signals)):
-            signals[i] = preprocess_eeg(signals[i],128,sample_rate,window_length)
-            node_features = torch.tensor(signals[i])
-            adj_matrix = torch.tensor(caculate_adj_matrix(signals[i]))
-            self.data.append((node_features, adj_matrix))
+            if i not in ids:
+                continue
+            signals_list = preprocess_eeg_segments(signals[i],128,sample_rate,window_length)
+            for j in range(len(signals_list)):
+                node_features = torch.tensor(signals_list[j]).to(torch.float32)
+                adj_matrix = torch.tensor(caculate_adj_matrix(signals_list[j]))
+                adj_matrix = trans_adj(adj_matrix, 2).to(torch.float32)
+                self.data.append((node_features, adj_matrix))
+                self.labels.append(labels[i])
         self.length = len(self.data)
 
     def __len__(self):
@@ -116,19 +126,26 @@ class SHL_Dataset(Dataset):
         return self.data[idx], self.labels[idx]
 
 class Alzh_Dataset(Dataset):
-    def __init__(self,raw_dir,sample_rate,window_length):
+    def __init__(self,raw_dir,sample_rate,window_length,ids=None):
         self.sample_rate = sample_rate
         self.window_length = window_length
         self.data = []
         self.labels = []
 
         signals,labels = read_raw_alzh(raw_dir)
-        self.labels = [torch.tensor(label) for label in labels]
+        labels = [torch.tensor(label) for label in labels]
+
+        print(ids)
         for i in range(len(signals)):
-            signals[i] = preprocess_eeg(signals[i],500,sample_rate,window_length)
-            node_features = torch.tensor(signals[i])
-            adj_matrix = torch.tensor(caculate_adj_matrix(signals[i]))
-            self.data.append((node_features, adj_matrix))
+            if i not in ids:
+                continue
+            signals_list = preprocess_eeg_segments(signals[i],500,sample_rate,window_length)
+            for j in range(len(signals_list)):
+                node_features = torch.tensor(signals_list[j]).to(torch.float32)
+                adj_matrix = torch.tensor(caculate_adj_matrix(signals_list[j]))
+                adj_matrix = trans_adj(adj_matrix, 2).to(torch.float32)
+                self.data.append((node_features, adj_matrix))
+                self.labels.append(labels[i])
         self.length = len(self.data)
 
     def __len__(self):
@@ -149,8 +166,8 @@ class TE_Dataset(Dataset):
         self.labels = [torch.tensor(label) for label in labels]
         for i in range(len(signals)):
             signals[i] = preprocess_eeg(signals[i],500,sample_rate,window_length)
-            node_features = torch.tensor(signals[i])
-            adj_matrix = torch.tensor(caculate_adj_matrix(signals[i]))
+            node_features = torch.tensor(signals[i]).to(torch.float32)
+            adj_matrix = torch.tensor(caculate_adj_matrix(signals[i])).to(torch.float32)
             self.data.append((node_features, adj_matrix))
         self.length = len(self.data)
 
@@ -172,3 +189,7 @@ def collate_fn_ft(batch):
     adj_matrix_batch = torch.stack(adj_matrix_batch)
     labels_batch = torch.tensor(labels_batch)
     return node_features_batch, adj_matrix_batch, labels_batch
+
+
+
+

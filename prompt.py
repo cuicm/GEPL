@@ -44,10 +44,10 @@ class EdgeMask(nn.Module):
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.prompt_adj)
 
-    def mask(self,adj,self_loop=True,device='cuda'):
+    def mask(self,adj,self_loop=True):
         adj_p = F.relu(adj * (self.prompt_adj + self.prompt_adj.transpose(1, 0)))
         if self_loop:
-            adj_p = adj_p + torch.eye(self.num_nodes).to(device)
+            adj_p = adj_p + torch.eye(self.num_nodes).to(adj.device)
         return adj_p
 
     def print_adj(self):
