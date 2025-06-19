@@ -5,5 +5,4 @@ Overview of workflow and GEPL. (a) EEG signals are resampled and cropped using a
 (b) During the pre-training phase, contrastive learning is used to generate graph augmentations, while contrastive loss optimizes the model’s ability to generalize to EEG data. All parameters of the model are updated throughout this process. 
 (c) In the target dataset, graph prompt tuning modifies node features and graph connections using learnable prompts to enhance task-specific performance. During this phase, only the parameters of the learnable graph prompt and the linear classification layer are updated, while the parameters of the pre-trained model remain unchanged.
 
-The processed data can be found at https://zenodo.org/records/13219018
 
